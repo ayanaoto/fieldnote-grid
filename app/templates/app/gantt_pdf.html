@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>工程表: {{ project.name }}</title>
+    <style>
+        @page {
+            size: A4 landscape; /* ★ 横向きを指定 */
+            margin: 1.5cm;
+        }
+        body {
+            font-family: "Helvetica", "Arial", "Hiragino Sans", "Meiryo", sans-serif;
+            font-size: 10pt;
+        }
+        h1 {
+            font-size: 18pt;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .gantt-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+        /* SVG内のフォントサイズなどを調整 */
+        .gantt-container svg {
+            width: 100%;
+            height: auto;
+        }
+        .gantt-container .bar-label,
+        .gantt-container .bar-wrapper .bar-label {
+            display: none !important;
+        }
+        .gantt-container .upper-text,
+        .gantt-container .lower-text {
+            font-size: 10px !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>工程表: {{ project.name }}</h1>
+    <p>顧客名: {{ project.customer.name|default:"-" }} / 期間: {{ project.start_date|date:"Y/n/j" }} - {{ project.end_date|date:"Y/n/j" }}</p>
+
+    <div class="gantt-container">
+        {# ★ JavaScriptから送られてきたSVGデータをここに埋め込む #}
+        {{ svg_data|safe }}
+    </div>
+
+</body>
+</html>

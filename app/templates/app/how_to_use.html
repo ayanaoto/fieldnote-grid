@@ -1,0 +1,62 @@
+{% extends 'app/base.html' %}
+{% block title %}使い方ガイド{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">使い方ガイド</h2>
+
+<div class="accordion" id="howToUseAccordion">
+
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingOne">
+      <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+        ステップ1：案件と顧客の作成
+      </button>
+    </h2>
+    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#howToUseAccordion">
+      <div class="accordion-body">
+        <p>まず最初に、管理する工事やリフォームの情報を「案件」として登録します。ホーム画面の「＋ 新規案件を作成」ボタンから作成できます。</p>
+        <p>案件作成時には、「顧客」を登録する必要があります。もし顧客がまだ登録されていない場合は、管理サイトから追加してください。</p>
+        <ol>
+            <li>画面右上の「管理サイト」リンクをクリックします。</li>
+            <li>「顧客」モデルの横にある「＋ 追加」ボタンを押します。</li>
+            <li>顧客名と所属会社を入力して保存します。</li>
+            <li>これで、案件作成時に新しい顧客を選択できるようになります。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingTwo">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+        ステップ2：工程表（タスク）の管理
+      </button>
+    </h2>
+    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#howToUseAccordion">
+      <div class="accordion-body">
+        <p>案件詳細ページでは、「工程表」タブでガントチャート形式のスケジュールを管理できます。</p>
+        <ul>
+            <li><strong>新規タスクの追加:</strong> 案件詳細ページの上部にある「＋ 新規タスク」ボタンから、タスク名、開始日、終了日などを登録します。</li>
+            <li><strong>タスクの編集・削除:</strong> 管理サイトの「タスク」メニューから行います。</li>
+            <li><strong>PDF保存:</strong> 「工程表をPDF保存」ボタンで、表示されているガントチャートをPDFとして出力できます。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingThree">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+        ステップ3：メンバーの招待
+      </button>
+    </h2>
+    <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#howToUseAccordion">
+      <div class="accordion-body">
+        <p>ナビゲーションバーの「メンバー管理」ページから、新しいメンバーをあなたの会社に招待できます。</p>
+        <p>招待したい相手のメールアドレスを入力して「招待メールを送信」ボタンを押してください。相手に登録用のリンクが送られます。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "app/base.html" %}
+{% load static %}
+
+{% block title %}{% if mode == "edit" %}タスク編集{% else %}タスク作成{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h3 class="mb-3">
+    {% if mode == "edit" %}タスク編集{% else %}タスク作成{% endif %}
+    <small class="text-muted">（案件: {{ project.name }}）</small>
+  </h3>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="mb-3">
+      <label class="form-label">タスク名</label>
+      {{ form.name }}
+      {{ form.name.errors }}
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">開始日</label>
+        {{ form.start_date }}
+        {{ form.start_date.errors }}
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">終了日</label>
+        {{ form.end_date }}
+        {{ form.end_date.errors }}
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">進捗率 (%)</label>
+      {{ form.progress }}
+      {{ form.progress.errors }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">先行タスク</label>
+      {{ form.dependencies }}
+      <div class="form-text">このタスクが開始する前に完了している必要があるタスクを選択</div>
+      {{ form.dependencies.errors }}
+    </div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn btn-outline-secondary"
+         href="{% url 'project_detail' project.pk %}">キャンセル</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

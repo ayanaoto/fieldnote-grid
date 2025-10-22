@@ -1,0 +1,683 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block title %}{{ project.name }} - 案件詳細{% endblock %}
+
+{% block content %}
+<style>
+  /* ===== Gantt 可読性ブースト（全体） ===== */
+  .gantt-wrapper {
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: .75rem;
+    padding: 1rem;
+    min-height: 420px;
+  }
+  .gantt-controls .form-select,
+  .gantt-controls .btn { height: 36px; }
+
+  /* バーのデフォルト色（JSで上書き可能にするため !important は付けない） */
+  .gantt .bar-wrapper .bar {
+    fill: #2b7be4;
+    stroke: #1b5fc8;
+    stroke-width: 1;
+    rx: 4px; ry: 4px;
+  }
+  .gantt .bar-progress { fill: #1b5fc8; opacity: .98; }
+
+  /* ★ 要望：バー内のラベルは表示しない */
+  .gantt .bar-label { display: none; }
+
+  /* 行の縞（横方向） */
+  .gantt .grid-row                 { fill: rgba(0,0,0,.03); }
+  .gantt .grid-row:nth-child(even) { fill: rgba(0,0,0,.06); }
+
+  /* 目盛り（上段：月、下段：日） → 1pt 小さくして省スペース */
+  .gantt .upper-text, .gantt .lower-text {
+    fill: #2a2f36;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 週末帯・月初線・今日ライン（図形はJSで描画） */
+  .gantt .weekend-rect { fill: rgba(33, 37, 41, .06); }
+  .gantt .month-split  { fill: #6c757d; opacity: .8; }
+  .gantt .today-marker { fill: #ff3b30; opacity: .95; }
+
+  /* ★ バー左右のDDラベル（開始=左／終了=右） */
+  .gantt .left-date-label text,
+  .gantt .right-date-label text {
+    fill: #2a2f36;
+    font-size: 12px;
+    font-weight: 800;
+    dominant-baseline: middle;
+    paint-order: stroke fill;
+    stroke: rgba(255,255,255,.92);
+    stroke-width: 3px;
+  }
+  .gantt .left-date-label  text { text-anchor: end;   }
+  .gantt .right-date-label text { text-anchor: start; }
+
+  /* ★ 凡例（工程色） */
+  #ganttLegend { margin-top: .25rem; }
+  .legend-chip {
+    display:inline-flex; align-items:center; gap:.4rem;
+    border:1px solid rgba(0,0,0,.1); border-radius:999px;
+    padding:.1rem .45rem .1rem .35rem;
+    line-height:1; white-space:nowrap;
+    font-size: 12px;
+  }
+  .legend-dot {
+    width:.7rem; height:.7rem; border-radius:999px; display:inline-block;
+    border:1px solid rgba(0,0,0,.2);
+  }
+
+  /* ===== 左固定のタイトル列（タスク名） ===== */
+  .gantt-shell { position: relative; }
+  .gantt-left  {
+    position: absolute; inset: 0 auto 0 0; width: 200px;
+    border-right: 1px solid var(--bs-border-color, #dee2e6);
+    background: var(--bs-body-bg, #fff);
+    padding: 0 .5rem;
+    overflow: hidden;
+  }
+  .gantt-right { margin-left: 200px; }
+
+  .gantt-left-item {
+    position: absolute; left: .5rem; transform: translateY(-50%);
+    max-width: 184px;
+    white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
+    font-size: 12px;
+    font-weight: 700; color: #212529;
+  }
+
+  .text-pre-wrap { white-space: pre-wrap; }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div class="d-flex align-items-center gap-3">
+    <h2 class="mb-0">{{ project.name }}</h2>
+    {% if project.status %}
+      <span class="badge text-bg-primary">{{ project.get_status_display|default:project.status }}</span>
+    {% endif %}
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if user.is_staff %}
+      <a href="{% url 'task_create' pk=project.pk %}" class="btn btn-success btn-sm">＋ 新規タスク</a>
+    {% endif %}
+    <a href="{% url 'project_pdf' pk=project.pk %}" class="btn btn-outline-secondary btn-sm" target="_blank">
+      PDF保存
+    </a>
+    <a href="{% url 'project_list' %}" class="btn btn-outline-secondary btn-sm">案件一覧へ戻る</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-light"><strong>案件情報</strong></div>
+  <div class="card-body row g-3">
+    <div class="col-md-6">
+      <div class="text-muted small">顧客</div>
+      <div>
+        {% if project.customer %}
+          {{ project.customer.name }}
+        {% else %}
+          <span class="text-muted">（未設定）</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="text-muted small">開始日</div>
+      <div>{{ project.start_date|date:"Y-m-d"|default:"—" }}</div>
+    </div>
+    <div class="col-md-3">
+      <div class="text-muted small">終了日</div>
+      <div>{{ project.end_date|date:"Y-m-d"|default:"—" }}</div>
+    </div>
+    {% if project.description %}
+      <div class="col-12">
+        <div class="text-muted small">説明</div>
+        <div class="text-pre-wrap">{{ project.description }}</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="projectTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="gantt-tab" data-bs-toggle="tab" data-bs-target="#gantt-pane"
+            type="button" role="tab" aria-controls="gantt-pane" aria-selected="true">工程表</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="checklist-tab" data-bs-toggle="tab" data-bs-target="#checklist-pane"
+            type="button" role="tab" aria-controls="checklist-pane" aria-selected="false">チェックリスト</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="memo-tab" data-bs-toggle="tab" data-bs-target="#memo-pane"
+            type="button" role="tab" aria-controls="memo-pane" aria-selected="false">共有メモ</button>
+  </li>
+</ul>
+
+<div class="tab-content" id="projectTabsContent">
+  <div class="tab-pane fade show active" id="gantt-pane" role="tabpanel" aria-labelledby="gantt-tab" tabindex="0">
+    <div class="d-flex align-items-center justify-content-between mb-2 gantt-controls">
+      <div class="d-flex align-items-center gap-2">
+        <label for="ganttViewMode" class="form-label mb-0 small text-muted">表示</label>
+        <select id="ganttViewMode" class="form-select form-select-sm" style="width: 160px;">
+          <option value="Day">日（詳細）</option>
+          <option value="Week" selected>週（おすすめ）</option>
+          <option value="Month">月</option>
+          <option value="Year">年</option>
+        </select>
+        <button id="ganttFit" class="btn btn-outline-secondary btn-sm">全体表示</button>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button id="exportGanttPdfBtn" class="btn btn-outline-secondary btn-sm">工程表をPDF保存</button>
+        <div class="text-muted small" id="ganttSummary"></div>
+      </div>
+    </div>
+
+    <div id="ganttLegend" class="d-flex flex-wrap gap-2 align-items-center small mb-2"></div>
+
+    <form id="ganttPdfForm" action="{% url 'project_gantt_pdf' pk=project.pk %}" method="post" target="_blank" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="svg_data" id="svgDataInput">
+    </form>
+
+    <div class="gantt-wrapper">
+      <div class="gantt-shell">
+        <div id="ganttLeft" class="gantt-left"></div>
+        <div class="gantt-right">
+          <div id="gantt"></div>
+        </div>
+      </div>
+      <div id="ganttEmpty" class="text-muted" style="display:none;">この案件にはまだ工程タスクが登録されていません。</div>
+      <div id="ganttError" class="text-danger" style="display:none;">工程データの取得または描画に失敗しました。</div>
+    </div>
+
+    <div class="mt-2 small text-muted">
+      ※ 工程表はタスクの開始日・終了日に基づきます。未設定のタスクは表示されません。
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="checklist-pane" role="tabpanel" aria-labelledby="checklist-tab" tabindex="0">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">チェックリスト</h5>
+      <a class="btn btn-sm btn-primary" href="{% url 'checklist_create' project.pk %}">＋ 新規リスト</a>
+    </div>
+
+    {% if checklists %}
+      <div class="list-group">
+        {% for cl in checklists %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="me-3">
+                <div class="fw-semibold">{{ cl.title }}</div>
+                <div class="text-muted small">作成: {{ cl.created_at|date:"Y/m/d H:i" }}</div>
+              </div>
+              <div class="text-nowrap">
+                <a class="btn btn-sm btn-outline-secondary me-1" href="{% url 'checklist_edit' cl.pk %}">編集</a>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'item_create' pk=cl.pk %}">項目追加</a>
+              </div>
+            </div>
+
+            {% with items=cl.checklistitem_set.all %}
+              {% if items %}
+                <ul class="list-unstyled mt-2 mb-0">
+                  {% for it in items %}
+                    <li class="d-flex align-items-center gap-2">
+                      <form action="{% url 'item_toggle' pk=it.pk %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-link p-0 border-0" style="vertical-align: baseline;">
+                          {% if it.is_done %}
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                          {% else %}
+                            <i class="bi bi-circle text-muted"></i>
+                          {% endif %}
+                        </button>
+                      </form>
+                      <span {% if it.is_done %}class="text-muted text-decoration-line-through"{% endif %}>
+                        {{ it.title }}
+                      </span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="text-muted small mt-2">項目はまだありません。</div>
+              {% endif %}
+            {% endwith %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-muted">チェックリストはまだありません。</div>
+    {% endif %}
+  </div>
+
+  <div class="tab-pane fade" id="memo-pane" role="tabpanel" aria-labelledby="memo-tab" tabindex="0">
+    <div class="row">
+      <div class="col-md-7">
+        <h5 class="mb-3">投稿一覧</h5>
+        {% if memos %}
+          {% for memo in memos %}
+            <div class="card mb-3">
+              <div class="card-body">
+                <p class="card-text text-pre-wrap">{{ memo.content }}</p>
+              </div>
+              <div class="card-footer bg-light text-muted small d-flex justify-content-between">
+                <span>投稿者: {{ memo.author.username }} ({{ memo.created_at|date:"Y/m/d H:i" }})</span>
+                {% if memo.author == request.user or user.is_staff %}
+                  <a href="{% url 'memo_edit' pk=memo.pk %}">編集</a>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">共有メモはまだありません。</p>
+        {% endif %}
+      </div>
+      <div class="col-md-5">
+        <h5 class="mb-3">新規投稿</h5>
+        <div class="card">
+          <div class="card-body">
+            <form action="{% url 'memo_create' pk=project.pk %}" method="post">
+              {% csrf_token %}
+              <div class="mb-3">
+                {{ memo_form.content }}
+              </div>
+              <button type="submit" class="btn btn-primary">投稿する</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/frappe-gantt@0.6.1/dist/frappe-gantt.css">
+<script src="https://unpkg.com/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
+
+<script>
+(function () {
+  let gantt = null;
+  let tasksCache = [];
+
+  function setVisible(id, show) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = show ? '' : 'none';
+  }
+
+  function summarize(tasks) {
+    if (!tasks || !tasks.length) return '';
+    const minStart = tasks.reduce((m, t) => (new Date(t.start) < new Date(m) ? t.start : m), tasks[0].start);
+    const maxEnd   = tasks.reduce((m, t) => (new Date(t.end)   > new Date(m) ? t.end   : m), tasks[0].end);
+    const fmt = (d) => new Date(d).toISOString().slice(0,10);
+    return `期間: ${fmt(minStart)} ～ ${fmt(maxEnd)} / タスク数: ${tasks.length}`;
+  }
+
+  function getSpan(tasks) {
+    const minDate = tasks.reduce((m,t)=> (new Date(t.start) < m ? new Date(t.start) : m), new Date(tasks[0].start));
+    const maxDate = tasks.reduce((m,t)=> (new Date(t.end)   > m ? new Date(t.end)   : m), new Date(tasks[0].end));
+    return { minDate, maxDate };
+  }
+
+  function drawWeekendAndMonth(tasks) {
+    if (!gantt || !gantt.get_x_by_date) return;
+    const { minDate, maxDate } = getSpan(tasks);
+    const start = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+    const end   = new Date(maxDate.getFullYear(),  maxDate.getMonth(),  maxDate.getDate());
+    const layer = gantt.layers?.grid || gantt.svg;
+    const H = gantt.svg.getBBox().height || 340;
+
+    Array.from(layer.querySelectorAll('.weekend-rect, .month-split, .today-marker')).forEach(n => n.remove());
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+      const day = d.getDay();
+      const x = gantt.get_x_by_date(d);
+      const next = new Date(d); next.setDate(d.getDate()+1);
+      const x2 = gantt.get_x_by_date(next);
+      const w = Math.max(1, x2 - x);
+
+      if (day === 0 || day === 6) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        rect.setAttribute('x', String(x));
+        rect.setAttribute('y', '0');
+        rect.setAttribute('width', String(w));
+        rect.setAttribute('height', String(H));
+        rect.setAttribute('class', 'weekend-rect');
+        layer.append(rect);
+      }
+      if (d.getDate() === 1) {
+        const ms = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        ms.setAttribute('x', String(x));
+        ms.setAttribute('y', '0');
+        ms.setAttribute('width', '2');
+        ms.setAttribute('height', String(H));
+        ms.setAttribute('class', 'month-split');
+        layer.append(ms);
+      }
+    }
+
+    const today = new Date();
+    const tx = gantt.get_x_by_date(today);
+    if (tx != null) {
+      const tl = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      tl.setAttribute('x', String(tx));
+      tl.setAttribute('y', '0');
+      tl.setAttribute('width', '2');
+      tl.setAttribute('height', String(H));
+      tl.setAttribute('class', 'today-marker');
+      layer.append(tl);
+    }
+  }
+
+  function drawEdgeDateLabels() {
+    if (!gantt || !gantt.bars) return;
+
+    gantt.bars.forEach(b => {
+      const grp = b.group || b.$bar_group || (b.$bar && b.$bar.parentNode);
+      if (!grp) return;
+      Array.from(grp.querySelectorAll('.left-date-label, .right-date-label')).forEach(n => n.remove());
+    });
+
+    gantt.bars.forEach(b => {
+      const rect = b.$bar || b.bar;
+      const grp  = b.group || b.$bar_group || (rect && rect.parentNode);
+      if (!rect || !grp) return;
+
+      const xAttr = rect.getAttribute('x');
+      const yAttr = rect.getAttribute('y');
+      const wAttr = rect.getAttribute('width');
+      const hAttr = rect.getAttribute('height');
+
+      const x = (xAttr != null) ? parseFloat(xAttr) : (b.x ?? 0);
+      const y = (yAttr != null) ? parseFloat(yAttr) : (b.y ?? 0);
+      const w = (wAttr != null) ? parseFloat(wAttr) : (b.width ?? 0);
+      const h = (hAttr != null) ? parseFloat(hAttr) : (b.height ?? 0);
+
+      const t = b.task || {};
+      const start = t._start instanceof Date ? t._start : (t.start ? new Date(t.start) : null);
+      const end   = t._end   instanceof Date ? t._end   : (t.end   ? new Date(t.end)   : null);
+      const dd = d => String(d.getDate()).padStart(2, '0');
+
+      if (start) {
+        const gL = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gL.setAttribute('class', 'left-date-label');
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.textContent = dd(start);
+        txt.setAttribute('x', String(x - 8));
+        txt.setAttribute('y', String(y + h / 2));
+        gL.append(txt);
+        grp.append(gL);
+      }
+      if (end) {
+        const gR = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gR.setAttribute('class', 'right-date-label');
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.textContent = dd(end);
+        txt.setAttribute('x', String(x + w + 8));
+        txt.setAttribute('y', String(y + h / 2));
+        gR.append(txt);
+        grp.append(gR);
+      }
+    });
+  }
+
+  function drawLeftRowTitles() {
+    if (!gantt || !gantt.bars) return;
+    const left = document.getElementById('ganttLeft');
+    if (!left) return;
+
+    left.innerHTML = '';
+
+    try {
+      const H = gantt.svg.getBBox().height || 340;
+      left.style.minHeight = H + 'px';
+    } catch (_) {}
+
+    gantt.bars.forEach(b => {
+      const rect = b.$bar || b.bar;
+      if (!rect) return;
+
+      const yAttr = rect.getAttribute('y');
+      const hAttr = rect.getAttribute('height');
+      const y = (yAttr != null) ? parseFloat(yAttr) : (b.y ?? 0);
+      const h = (hAttr != null) ? parseFloat(hAttr) : (b.height ?? 0);
+
+      const item = document.createElement('div');
+      item.className = 'gantt-left-item';
+      item.style.top = (y + h / 2) + 'px';
+      item.title = b.task?.name || '';
+      item.textContent = b.task?.name || '(無題)';
+      left.appendChild(item);
+    });
+  }
+
+  const COLOR_MAP = {
+    "基礎":         { fill:"#e53935", stroke:"#c62828" },
+    "解体":         { fill:"#8d6e63", stroke:"#6d4c41" },
+    "電気":         { fill:"#fbc02d", stroke:"#f9a825" },
+    "水道":         { fill:"#29b6f6", stroke:"#0288d1" },
+    "塗装":         { fill:"#8e24aa", stroke:"#6a1b9a" },
+    "外構":         { fill:"#43a047", stroke:"#2e7d32" },
+    "クロス":       { fill:"#7cb342", stroke:"#558b2f" },
+    "大工":         { fill:"#3949ab", stroke:"#283593" },
+    "設置":         { fill:"#ff9800", stroke:"#ef6c00" },
+    "クリーニング": { fill:"#00acc1", stroke:"#00838f" },
+    "屋根":         { fill:"#607d8b", stroke:"#455a64" },
+    "その他":       { fill:"#00acc1", stroke:"#00838f" }
+  };
+
+  const KEYWORDS = {
+    "基礎":       ["基礎", "土間", "砕石", "配筋", "コンクリート"],
+    "解体":       ["解体", "撤去"],
+    "電気":       ["電気", "電設", "配線", "照明", "分電盤", "コンセント"],
+    "水道":       ["水道", "給水", "給湯", "排水", "配管", "衛生", "設備"],
+    "塗装":       ["塗装", "ペンキ"],
+    "外構":       ["外構", "エクステリア", "フェンス", "カーポート", "土留め"],
+    "クロス":     ["クロス", "壁紙", "内装仕上", "貼替"],
+    "大工":       ["大工", "造作", "下地", "木工", "フローリング", "建具"],
+    "設置":       ["設置", "据付", "取り付け", "機器", "設備据付"],
+    "クリーニング":["クリーニング", "清掃", "美装"],
+    "屋根":       ["屋根", "瓦", "板金", "ルーフ", "防水"]
+  };
+
+  function norm(s){
+    return (s || "")
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+      .replace(/\s+/g, "")
+      .toLowerCase();
+  }
+
+  function getTaskType(task){
+    const explicit = task.type || task.category || task.kind;
+    if (explicit && COLOR_MAP[explicit]) return explicit;
+
+    const nameN = norm(task.name || "");
+    const parts = nameN.split(/[・/／,、]/).filter(Boolean);
+    const toScan = parts.length ? parts : [nameN];
+
+    for (const typ of Object.keys(COLOR_MAP)) {
+      if (typ === "その他") continue;
+      const keys = KEYWORDS[typ] || [typ];
+      const keysN = keys.map(norm);
+      for (const chunk of toScan) {
+        if (keysN.some(k => chunk.includes(k))) return typ;
+      }
+    }
+    return "その他";
+  }
+
+  function renderLegend(typesSet){
+    const legend = document.getElementById("ganttLegend");
+    if (!legend) return;
+    legend.innerHTML = "";
+
+    const order = Object.keys(COLOR_MAP).filter(k => k !== "その他");
+    const types = order.filter(t => typesSet.has(t));
+    if (typesSet.has("その他")) types.push("その他");
+
+    types.forEach(t=>{
+      const c = COLOR_MAP[t] || COLOR_MAP["その他"];
+      const chip = document.createElement("span");
+      chip.className = "legend-chip";
+      chip.innerHTML = `<span class="legend-dot" style="background:${c.fill}; border-color:${c.stroke}"></span>${t}`;
+      legend.appendChild(chip);
+    });
+  }
+
+  function colorizeBars(){
+    if (!gantt || !gantt.bars) return;
+    const typesShown = new Set();
+    gantt.bars.forEach(b => {
+      const t = b.task || {};
+      const type = getTaskType(t);
+      typesShown.add(type);
+      const c = COLOR_MAP[type] || COLOR_MAP["その他"];
+      const rect = b.$bar || b.bar;
+      const prog = b.$bar_progress || b.bar_progress;
+      if (rect) {
+        rect.setAttribute("fill", c.fill);
+        rect.setAttribute("stroke", c.stroke);
+        rect.style.fill = c.fill;
+        rect.style.stroke = c.stroke;
+      }
+      if (prog) {
+        prog.setAttribute("fill", c.stroke);
+        prog.style.fill = c.stroke;
+      }
+    });
+    renderLegend(typesShown);
+  }
+
+  function render(tasks, viewMode) {
+    const container = "#gantt";
+    const el = document.querySelector(container);
+    if (el) el.innerHTML = "";
+
+    const mode = viewMode || 'Week';
+    const columnWidth =
+      mode === 'Day'   ? 48 :
+      mode === 'Week'  ? 36 :
+      mode === 'Month' ? 24 :
+                          48;
+
+    gantt = new Gantt(container, tasks, {
+      view_mode: mode,
+      bar_height: 22,
+      padding: 18,
+      column_width: columnWidth,
+      arrow_curve: 0,
+      custom_popup_html: function(task) {
+        const s = task._start ? task._start.toISOString().slice(0,10) : '';
+        const e = task._end ? task._end.toISOString().slice(0,10) : '';
+        const pr = (task.progress != null && task.progress !== '') ? `${task.progress}%` : '—';
+        return `
+          <div class="details-container" style="padding:.5rem .75rem;min-width:240px">
+            <h6 class="mb-1">${task.name}</h6>
+            <div class="small text-muted">開始: ${s}</div>
+            <div class="small text-muted">終了: ${e}</div>
+            <div class="small text-muted">進捗: ${pr}</div>
+          </div>
+        `;
+      }
+    });
+
+    drawWeekendAndMonth(tasks);
+    drawEdgeDateLabels();
+    colorizeBars();
+    drawLeftRowTitles();
+  }
+
+  function applyViewMode(mode) {
+    if (!gantt) return;
+    render(tasksCache, mode);
+  }
+
+  function fit() {
+    if (!gantt) return;
+    render(tasksCache, document.getElementById('ganttViewMode').value || 'Week');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    fetch("{% url 'project_tasks_json' project.pk %}", { headers: { 'Accept': 'application/json' } })
+      .then(r => r.ok ? r.json() : Promise.reject('bad_response'))
+      .then(tasks => {
+        if (!tasks || !tasks.length) {
+          setVisible('ganttEmpty', true);
+          return;
+        }
+        tasksCache = tasks;
+        render(tasksCache, 'Week');
+        document.getElementById('ganttSummary').textContent = summarize(tasksCache);
+        document.getElementById('gantt-tab')?.addEventListener('shown.bs.tab', fit);
+      })
+      .catch(() => setVisible('ganttError', true));
+
+    // ===============================================
+    // ★★★★★ PDF出力のJavaScriptをこちらに差し替え ★★★★★
+    // ===============================================
+    document.getElementById('exportGanttPdfBtn').addEventListener('click', function () {
+        const svgElement = document.querySelector('#gantt svg');
+        if (!svgElement) {
+            alert('ガントチャートが描画されていないため、PDFをエクスポートできません。');
+            return;
+        }
+
+        // 画面上のSVGはいじらずに、コピーして処理する
+        const clonedSvg = svgElement.cloneNode(true);
+
+        // SVGに直接埋め込むCSSスタイルを定義（!importantで強制上書き）
+        const cssStyles = `
+            <style>
+                /* 全体に白い背景を指定 */
+                .grid-background, .grid { fill: #ffffff !important; }
+                .grid-header { fill: #f8f9fa !important; }
+                .grid-row:nth-child(even) { fill: #f8f9fa !important; }
+                .grid-row:nth-child(odd) { fill: #ffffff !important; }
+                
+                /* 線を薄い灰色に */
+                .tick, .grid-body, .grid-header, .grid-row { stroke: #dee2e6 !important; stroke-width: 1px !important; }
+                
+                /* 全てのテキストを黒に */
+                text, .upper-text, .lower-text, .gantt-left-item { 
+                    fill: #212529 !important; 
+                    font-size: 10px !important; 
+                    font-family: "Helvetica", "Arial", "Hiragino Sans", "Meiryo", sans-serif;
+                }
+                
+                /* バーのテキストは非表示 */
+                .bar-label { display: none !important; }
+            </style>
+        `;
+
+        // SVGデータのdefsタグ（定義セクション）にスタイルを挿入する
+        const defs = clonedSvg.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML += cssStyles;
+        if (!clonedSvg.querySelector('defs')) {
+            clonedSvg.prepend(defs);
+        }
+        
+        // シリアライズ（文字列に変換）
+        let svgString = new XMLSerializer().serializeToString(clonedSvg);
+
+        // 隠しフォームのinputにSVG文字列をセット
+        document.getElementById('svgDataInput').value = svgString;
+        
+        // フォームを送信してPDFをダウンロード
+        document.getElementById('ganttPdfForm').submit();
+    });
+    // ===============================================
+    // ★★★★★ 修正はここまで ★★★★★
+    // ===============================================
+
+    document.getElementById('ganttViewMode').addEventListener('change', (e) => applyViewMode(e.target.value));
+    document.getElementById('ganttFit').addEventListener('click', fit);
+    window.addEventListener('resize', () => {
+      if (!gantt) return;
+      clearTimeout(window.__gantt_resize_timer);
+      window.__gantt_resize_timer = setTimeout(fit, 120);
+    });
+  });
+})();
+</script>
+{% endblock %}

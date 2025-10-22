@@ -1,0 +1,123 @@
+{% extends 'app/base.html' %}
+{% block title %}メンバー管理{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">メンバー管理</h2>
+
+{# ビューからのメッセージ（招待成功時など）を表示するエリア #}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-success" role="alert">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<div class="row">
+  <div class="col-md-7">
+    <div class="card mb-4">
+      <div class="card-header">
+        所属メンバー
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0 align-middle">
+          <thead class="table-light visually-hidden">
+            <tr>
+              <th>氏名 / ユーザー名</th>
+              <th>権限</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in members %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ u.get_full_name|default:u.username }}</div>
+                  <div class="text-muted small">{{ u.email }}</div>
+                </td>
+                <td class="text-end">
+                  {% if u.is_staff %}
+                    <span class="badge text-bg-primary">STAFF</span>
+                  {% endif %}
+                  {% if u.is_superuser %}
+                    <span class="badge text-bg-danger">SUPERUSER</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="2" class="text-muted text-center py-4">メンバーがいません。</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if invitations %}
+      <div class="card">
+        <div class="card-header">
+          招待中のメンバー
+        </div>
+        <div class="list-group list-group-flush">
+          {% for inv in invitations %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <span class="text-muted">{{ inv.email }}</span>
+                <small class="d-block text-muted">招待日: {{ inv.created_at|date:"Y/m/d" }}</small>
+              </div>
+              <form action="{% url 'invitation_delete' pk=inv.pk %}" method="post" onsubmit="return confirm('この招待を取り消しますか？');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">取消</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">
+        新規メンバーを招待
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          招待したいメンバーのメールアドレスを入力してください。登録用のリンクが記載されたメールが送信されます。
+        </p>
+        <form action="{% url 'member_management' %}" method="post">
+          {% csrf_token %}
+          
+          {# フォーム全体のエラー #}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">
+              {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+            {{ form.email }}
+            {# 個別フィールドのエラー #}
+            {% if form.email.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.email.errors %}{{ error }}{% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">招待メールを送信</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <a href="{% url 'admin:app_customuser_changelist' %}" class="btn btn-outline-secondary btn-sm" target="_blank">
+        管理サイトで直接編集
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

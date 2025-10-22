@@ -1,0 +1,25 @@
+{% extends "app/base.html" %}
+{% block title %}メモ編集{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">メモを編集</div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="mb-3">
+        <label class="form-label">{{ form.content.label }}</label>
+        {{ form.content }}
+        {{ form.content.errors }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label">{{ form.mentions.label }}</label>
+        {{ form.mentions }}
+        {{ form.mentions.errors }}
+      </div>
+      <button class="btn btn-primary" type="submit">保存</button>
+      <a class="btn btn-outline-secondary" href="{% url 'project_detail' object.project_id %}">戻る</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

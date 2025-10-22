@@ -1,0 +1,75 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{# Djangoの管理サイトのメインコンテンツブロックを上書きします #}
+{% block content %}
+
+    {# ★ ステップ1：元のコンテンツ（APPメニュー）を先に表示します #}
+    {{ block.super }}
+
+    {# ★ ステップ2：その下に「使い方ガイド」のセクションを追加します #}
+    <div class="app-app module" id="how-to-use-guide">
+        <table>
+            <caption>
+                <span class="section">使い方ガイド</span>
+            </caption>
+            <tbody>
+                <tr>
+                    <td>
+                        <p>この管理サイトは、アプリのデータを直接編集するための管理者向けツールです。</p>
+
+                        <div class="accordion" id="howToUseAccordionAdmin">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingOneAdmin">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOneAdmin" aria-expanded="true" aria-controls="collapseOneAdmin">
+                                        ステップ1：基本操作（データの確認・修正）
+                                    </button>
+                                </h2>
+                                <div id="collapseOneAdmin" class="accordion-collapse collapse show" aria-labelledby="headingOneAdmin" data-bs-parent="#howToUseAccordionAdmin">
+                                    <div class="accordion-body">
+                                        左のメニューから「案件」や「顧客」などをクリックすると、登録されているデータの一覧が表示されます。一覧の項目名（例：案件名）をクリックすると、詳細な編集画面に移動できます。
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingTwoAdmin">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwoAdmin" aria-expanded="false" aria-controls="collapseTwoAdmin">
+                                        ステップ2：データの追加
+                                    </button>
+                                </h2>
+                                <div id="collapseTwoAdmin" class="accordion-collapse collapse" aria-labelledby="headingTwoAdmin" data-bs-parent="#howToUseAccordionAdmin">
+                                    <div class="accordion-body">
+                                        各モデルの一覧ページの右上にある「＋ 追加」ボタンを押すと、新しいデータを登録するフォームが開きます。案件に紐づける顧客がいない場合などは、まず「顧客」を追加してください。
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingThreeAdmin">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThreeAdmin" aria-expanded="false" aria-controls="collapseThreeAdmin">
+                                        ステップ3：権限（パーミッション）とグループの管理
+                                    </button>
+                                </h2>
+                                <div id="collapseThreeAdmin" class="accordion-collapse collapse" aria-labelledby="headingThreeAdmin" data-bs-parent="#howToUseAccordionAdmin">
+                                    <div class="accordion-body">
+                                        <p>Djangoでは、ユーザーごとに「何ができるか」を細かく設定できます。これを**パーミッション（権限）**と呼びます。</p>
+                                        <p>ユーザー一人ひとりに権限を設定するのは大変なので、役割ごとの「**グループ**」を作成し、そのグループにユーザーを所属させるのが一般的です。</p>
+                                        <hr>
+                                        <p><strong>例：「閲覧専用」グループの作成方法</strong></p>
+                                        <ol>
+                                            <li>左のメニュー「認証と認可」の中にある「**グループ**」の「＋追加」ボタンを押します。</li>
+                                            <li>グループ名を「閲覧専用」など分かりやすい名前にします。</li>
+                                            <li>「パーミッション」の選択ボックスで、名前に「<strong>view</strong>」が含まれる権限（例: `app | project | Can view project`）を複数選択します。</li>
+                                            <li>「保存」します。</li>
+                                            <li>次に、「ユーザー」から権限を設定したいユーザーを選び、「グループ」の選択ボックスで今作成した「閲覧専用」グループを追加して保存します。</li>
+                                        </ol>
+                                        <p>こうすることで、そのユーザーはデータの閲覧はできますが、誤って編集したり削除したりすることができなくなり、安全に運用できます。</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

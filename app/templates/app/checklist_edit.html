@@ -1,0 +1,44 @@
+{% extends "app/base.html" %}
+{% load static %}
+{% block title %}{% if mode == "create" %}チェックリストを作成{% else %}チェックリスト名を編集{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="card shadow-sm">
+    <div class="card-header">
+      {% if mode == "create" %}チェックリストを作成{% else %}チェックリスト名を編集{% endif %}
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.title.label }}</label>
+          {{ form.title }}
+          {% if form.title.errors %}
+            <div class="text-danger small mt-1">{{ form.title.errors }}</div>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">保存</button>
+        <a class="btn btn-outline-secondary ms-2"
+           href="{{ return_url|default:('/projects/'|add:project.pk|stringformat:'s'|add:'/') }}">
+          戻る
+        </a>
+      </form>
+    </div>
+  </div>
+
+  {% if project %}
+    <div class="text-muted small mt-3">
+      プロジェクト：<a href="{% url 'project_detail' project.pk %}">{{ project.name }}</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

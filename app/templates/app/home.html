@@ -1,0 +1,86 @@
+{% extends 'app/base.html' %}
+{% block title %}ダッシュボード{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">ダッシュボード</h2>
+
+<!-- 統計サマリー -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title text-muted">ようこそ</h5>
+                <p class="card-text fs-3 fw-bold pt-2">{{ user.get_full_name|default:user.username }} さん</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title text-muted">進行中の案件</h5>
+                <p class="card-text fs-1 fw-bold">{{ project_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title text-muted">期限が近いタスク</h5>
+                <p class="card-text fs-1 fw-bold">{{ overdue_task_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 期限間近のタスク -->
+    <div class="col-lg-6">
+        <h4 class="mb-3">期限が近いタスク</h4>
+        <div class="list-group shadow-sm">
+            {% for task in overdue_tasks %}
+                <a href="{% url 'project_detail' task.project.pk %}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ task.name }}</h6>
+                        <small>
+                            {% if task.end_date < today %}
+                                <span class="badge bg-danger">期限切れ</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">期限間近</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    <p class="mb-1 text-muted small">{{ task.project.name }}</p>
+                    <small class="text-muted">期限: {{ task.end_date|date:"Y-m-d" }}</small>
+                </a>
+            {% empty %}
+                <div class="list-group-item">
+                    <p class="text-muted mb-0">期限が近いタスクはありません。</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 最近の共有メモ -->
+    <div class="col-lg-6 mt-4 mt-lg-0">
+        <h4 class="mb-3">最近の共有メモ</h4>
+        <div class="list-group shadow-sm">
+            {% for memo in recent_memos %}
+                <a href="{% url 'project_detail' memo.project.pk %}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 text-primary">{{ memo.project.name }}</h6>
+                        <small class="text-muted">{{ memo.created_at|timesince }}前</small>
+                    </div>
+                    <p class="mb-1 text-truncate">{{ memo.content }}</p>
+                    <small class="text-muted">投稿者: {{ memo.author.username }}</small>
+                </a>
+            {% empty %}
+                <div class="list-group-item">
+                    <p class="text-muted mb-0">共有メモはまだありません。</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
