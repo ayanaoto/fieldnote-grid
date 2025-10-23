@@ -197,3 +197,4 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # collectstatic 失敗の再発を避けるためのワンショット検査
 assert STATIC_ROOT, f"STATIC_ROOT is not set (loaded from {__name__})"
 assert "staticfiles" in STORAGES, f"STORAGES['staticfiles'] missing (loaded from {__name__})"
+# 最終確認 20251022
