@@ -1,146 +1,138 @@
-﻿import os
-from pathlib import Path
-import dj_database_url
+﻿# -*- coding: utf-8 -*-
+"""
+Django settings for fieldnote_saas project.
+最終修正版（省略なし）
+- Render とローカル両対応
+- WhiteNoise + collectstatic（STATIC_ROOT 必須）
+"""
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+from pathlib import Path
+import os
+import dj_database_url  # データベース接続のために追加
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# --- 1. セキュリティ設定 (重要) ---
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret-key-change-me")
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# 環境変数からSECRET_KEYを読み込む。なければ開発用のキーを使う。
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-h3zyt@#s1^r7(6h8h4c^33&we8*v$+bpzq#e5h_4%h9=ub1l2b')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-# 'RENDER'という環境変数がなければ、DEBUGはTrue (開発環境)
-DEBUG = 'RENDER' not in os.environ
-
-# Renderのホスト名と、開発用のホスト名を許可
-ALLOWED_HOSTS = ['127.0.0.1']
-
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+# --- 2. ALLOWED_HOSTS (Render 対応) ---
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
+# Optional: RENDER_EXTERNAL_URL を設定しているなら CSRF_TRUSTED_ORIGINS を自動追加
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
+if RENDER_EXTERNAL_URL:
+    from urllib.parse import urlparse
+    parsed = urlparse(RENDER_EXTERNAL_URL)
+    CSRF_TRUSTED_ORIGINS = [f"{parsed.scheme}://{parsed.netloc}"]
+else:
+    CSRF_TRUSTED_ORIGINS = []
 
-# Application definition
+# --- Application definition ---
 INSTALLED_APPS = [
-    'app.apps.AppConfig',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'whitenoise.runserver_nostatic', # whitenoiseを追加
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "whitenoise.runserver_nostatic",  # runserver と static の衝突回避
+    "django.contrib.staticfiles",
+    "app.apps.AppConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # whitenoiseを追加
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # SecurityMiddleware の直後
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'fieldnote_saas.urls'
+ROOT_URLCONF = "fieldnote_saas.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],  # 必要なら [BASE_DIR / "templates"]
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'fieldnote_saas.wsgi.application'
+WSGI_APPLICATION = "fieldnote_saas.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-if 'RENDER' in os.environ:
-    # 本番環境 (Render) の場合：PostgreSQL
-    DATABASES = {
-        'default': dj_database_url.config(
-            conn_max_age=600,
-            ssl_require=True,
-        )
-    }
+# --- 3. データベース設定 (Render対応) ---
+DATABASES = {}
+if "DATABASE_URL" in os.environ:
+    DATABASES["default"] = dj_database_url.config(conn_max_age=600, ssl_require=True)
 else:
-    # 開発環境の場合：SQLite3
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-
+    DATABASES["default"] = {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
 
 # Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
-
-LANGUAGE_CODE = 'ja'
-TIME_ZONE = 'Asia/Tokyo'
+LANGUAGE_CODE = "ja"
+TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True
 USE_TZ = True
 
+# --- 4. 静的ファイル設定 (Render対応) ---
+# 無条件で定義（インデントしないこと）
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
+# 任意: プロジェクト内に手動で置く static がある場合だけ有効化
+# STATICFILES_DIRS = [BASE_DIR / "static"]
 
-STATIC_URL = 'static/'
+# メディア（ユーザーアップロード）
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# 開発環境でのみ 'staticfiles' を作成するように変更
-if 'RENDER' not in os.environ:
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
+# Django 5+ 推奨の STORAGES 設定
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": str(MEDIA_ROOT), "base_url": MEDIA_URL},
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = "app.CustomUser"
+LOGIN_URL = "login"
 
-AUTH_USER_MODEL = 'app.CustomUser'
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home' # ログイン後のリダイレクト先
-LOGOUT_REDIRECT_URL = 'login' # ログアウト後のリダイレクト先
-
-# --- メール送信設定 ---
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+# --- 5. メール送信設定 (セキュリティ対応) ---
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
-# ★★★★★ ここを修正 ★★★★★
-# 本番環境では環境変数から読み込み、開発環境（環境変数が無い場合）では直接指定した値を使う
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'toshikazu.1976.12.8@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'hyqd gpan udst qynx')
-
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# === デバッグ用自己診断（成功したら削除してOK） ===
+assert STATIC_ROOT, f"STATIC_ROOT is not set (loaded from {__name__})"
+assert "staticfiles" in STORAGES, f"STORAGES['staticfiles'] missing (loaded from {__name__})"
