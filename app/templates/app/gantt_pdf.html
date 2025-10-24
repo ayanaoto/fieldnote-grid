@@ -3,46 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <title>工程表: {{ project.name }}</title>
+    <!-- ★★★ Google Fonts (Noto Sans JP) 読み込みを追加 ★★★ -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <!-- ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ -->
     <style>
         @page {
-            size: A4 landscape; /* ★ 横向きを指定 */
-            margin: 1.5cm;
+            size: A4 landscape; /* 横向き */
+            margin: 1cm;
         }
+        /* ★★★ body にフォント指定を追加 ★★★ */
         body {
-            font-family: "Helvetica", "Arial", "Hiragino Sans", "Meiryo", sans-serif;
-            font-size: 10pt;
+            font-family: 'Noto Sans JP', sans-serif; /* ← フォント指定を追加 */
+            font-size: 9pt; /* 全体のフォントサイズを少し小さめに */
+            color: #333;
         }
         h1 {
-            font-size: 18pt;
-            border-bottom: 2px solid #333;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            font-size: 14pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 8px;
+        }
+        .project-info {
+            margin-bottom: 15px;
+            font-size: 10pt;
+            text-align: center; /* 中央揃えに */
         }
         .gantt-container {
             width: 100%;
-            margin-top: 20px;
+            overflow: hidden; /* SVGがはみ出ないように */
+            margin: 0 auto; /* 中央揃え */
         }
-        /* SVG内のフォントサイズなどを調整 */
+        /* SVG自体のスタイル調整 */
         .gantt-container svg {
-            width: 100%;
+            max-width: 100%; /* コンテナ幅に合わせる */
             height: auto;
+            display: block; /* 余白削除 */
+            margin: 0 auto; /* 中央揃え */
+            /* SVG内のフォントも指定 (重要) */
+            font-family: 'Noto Sans JP', sans-serif !important;
         }
-        .gantt-container .bar-label,
-        .gantt-container .bar-wrapper .bar-label {
-            display: none !important;
+        /* Frappe Gantt のデフォルトスタイルを上書きしてフォントサイズ調整 */
+        .gantt .bar-label {
+            font-size: 8pt !important; /* タスク名の文字サイズ */
+            fill: #555 !important; /* 文字色を濃く */
         }
-        .gantt-container .upper-text,
-        .gantt-container .lower-text {
-            font-size: 10px !important;
+        .gantt .grid-header text,
+        .gantt .tick text {
+             font-size: 7pt !important; /* 日付ヘッダーの文字サイズ */
+             fill: #666 !important;
         }
+        /* SVG内の日本語フォントが指定されない場合があるため再指定 */
+        text {
+             font-family: 'Noto Sans JP', sans-serif !important;
+        }
+
     </style>
 </head>
 <body>
     <h1>工程表: {{ project.name }}</h1>
-    <p>顧客名: {{ project.customer.name|default:"-" }} / 期間: {{ project.start_date|date:"Y/n/j" }} - {{ project.end_date|date:"Y/n/j" }}</p>
+
+    <div class="project-info">
+        {% if project.start_date and project.end_date %}
+            期間: {{ project.start_date|date:"Y/n/j" }} - {{ project.end_date|date:"Y/n/j" }}
+        {% elif project.start_date %}
+            開始日: {{ project.start_date|date:"Y/n/j" }}
+        {% elif project.end_date %}
+            終了日: {{ project.end_date|date:"Y/n/j" }}
+        {% endif %}
+        <span style="margin-left: 20px;">作成日: {% now "Y-m-d" %}</span>
+    </div>
 
     <div class="gantt-container">
-        {# ★ JavaScriptから送られてきたSVGデータをここに埋め込む #}
+        <!-- JavaScriptから渡されたSVGデータをここに埋め込む -->
         {{ svg_data|safe }}
     </div>
 
