@@ -123,6 +123,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "app.CustomUser"
 LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = '/'  # ログイン後に飛ぶ先をホームページに設定
 
 # --- 5. メール送信設定 (セキュリティ対応) ---
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
