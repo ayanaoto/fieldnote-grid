@@ -107,12 +107,12 @@ class HomeView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         company = request.user.company
-        
+
         # --- ダッシュボード用のデータを取得 ---
-        
+
         # 1. 進行中の案件数
         project_count = Project.objects.filter(company=company, status="進行中").count()
-        
+
         # 2. 期限切れ or 期限間近の未完了タスク (7日以内)
         today = timezone.now().date()
         due_date_limit = today + timezone.timedelta(days=7)
@@ -131,7 +131,7 @@ class HomeView(LoginRequiredMixin, View):
             .select_related("project", "author")
             .order_by("-id")[:5] # 5件に制限
         )
-        
+
         context = {
             "project_count": project_count,
             "overdue_task_count": overdue_task_count, # ★ コンテキストに追加
@@ -139,7 +139,7 @@ class HomeView(LoginRequiredMixin, View):
             "recent_memos": recent_memos,
             "today": today,
         }
-        
+
         return render(request, self.template_name, context)
 
 
@@ -169,7 +169,10 @@ class ProjectCreateView(AdminRequiredMixin, CreateView):
 
     def form_valid(self, form):
         obj = form.save(commit=False)
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        # IntegrityError 修正：company を設定する
         obj.company = self.request.user.company
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         obj.save()
         return redirect("project_detail", pk=obj.pk)
 
@@ -399,4 +402,3 @@ class GanttPDFView(LoginRequiredMixin, View):
         response = HttpResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="gantt_{project.pk}_{project.name}.pdf"'
         return response
-
